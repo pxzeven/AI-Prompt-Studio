@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Prompt Studio</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="index.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.sh/@google/genai@1.0.0"
+        }
+      }
+    </script>
+</head>
+<body data-theme="dark" data-app-mode="builder">
+    <header>
+        <h1 data-translate="appTitle">AI Prompt Studio</h1>
+        <p data-translate="appDescription">An intuitive studio to build detailed, creative prompts for AI.</p>
+        <div class="header-controls">
+            <div class="language-toggle-container">
+                <input type="checkbox" id="language-toggle" class="language-toggle">
+                <label for="language-toggle" class="language-toggle-label">
+                    <span class="lang-en">EN</span>
+                    <span class="lang-mm">MM</span>
+                </label>
+            </div>
+            <button type="button" id="theme-toggle-button" class="icon-button" data-translate-title="themeToggleButtonTitle" title="Toggle Theme">
+                <i class="bi bi-moon-stars-fill"></i>
+            </button>
+            <button type="button" id="history-button" class="icon-button" data-translate-title="historyButtonTitle" title="View Prompt History">
+                <i class="bi bi-clock-history"></i>
+            </button>
+            <button id="settings-button" class="icon-button" data-translate-title="settingsButtonTitle" title="Settings">
+                <i class="bi bi-gear-fill"></i>
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <div id="controls">
+             <div id="analysis-overlay" class="hidden">
+                <div class="spinner"></div>
+                <p data-translate="analyzingAdText">Analyzing Reference Ad...</p>
+                <button type="button" id="cancel-analysis-button" data-translate="cancelButton">Cancel</button>
+            </div>
+
+            <div id="api-key-notice" class="hidden">
+                <p data-translate="apiKeyNoticeText">Please set your API Key in the settings to begin.</p>
+            </div>
+            
+            <div class="mode-selector">
+                <label>
+                    <input type="radio" name="mode" value="builder" checked>
+                    <span data-translate="modeBuilderLabel">Prompt Builder</span>
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="prompt">
+                    <span data-translate="modePromptLabel">From Image</span>
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="candid">
+                    <span data-translate="modeCandidLabel">Candid Action</span>
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="ad-creator">
+                    <span data-translate="modeAdCreatorLabel">Ad Creator</span>
+                </label>
+                <label>
+                    <input type="radio" name="mode" value="logo-creator">
+                    <span data-translate="modeLogoCreatorLabel">Logo Creator</span>
+                </label>
+            </div>
+
+            <form id="prompt-form">
+                <div id="file-uploader-container">
+                    <label for="file-uploader" data-translate="fileUploaderLabel">Upload an image</label>
+                    <input type="file" id="file-uploader" accept="image/*">
+                    <div id="image-preview-container" class="hidden">
+                        <img id="image-preview" src="" data-translate-alt="imagePreviewAlt" alt="Image Preview"/>
+                    </div>
+                </div>
+
+                <div id="builder-prompt-container" class="control-group">
+                    <label for="builder-prompt-input" data-translate="promptLabel">Base Idea or Action</label>
+                    <div class="prompt-wrapper">
+                      <textarea id="builder-prompt-input" rows="3" data-translate-placeholder="promptPlaceholderBuilder" placeholder="e.g., A wizard in a futuristic city."></textarea>
+                      <div class="prompt-buttons-wrapper">
+                          <button type="button" id="enhance-builder-button" class="icon-button" data-translate-title="enhancePromptButtonTitle" title="Enhance Prompt">
+                            <i class="bi bi-magic"></i>
+                          </button>
+                      </div>
+                    </div>
+                </div>
+
+                <div id="candid-action-container" class="control-group hidden">
+                    <label for="candid-action-input" data-translate="candidActionLabel">Action</label>
+                    <div class="prompt-wrapper">
+                      <textarea id="candid-action-input" rows="3" data-translate-placeholder="promptPlaceholderCandid" placeholder="e.g., A guy hugging a girl"></textarea>
+                      <div class="prompt-buttons-wrapper">
+                          <button type="button" id="random-action-button" class="icon-button" data-translate-title="randomActionButtonTitle" title="Random Action">
+                            <i class="bi bi-dice-5"></i>
+                          </button>
+                      </div>
+                    </div>
+                </div>
+                
+                <div id="ad-creator-options" class="hidden">
+                    <div id="ad-creator-sub-mode-selector" class="mode-selector">
+                        <label>
+                            <input type="radio" name="ad-sub-mode" value="reference" checked>
+                            <span data-translate="adSubModeReference">From Reference Ad</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="ad-sub-mode" value="idea">
+                            <span data-translate="adSubModeIdea">From Own Idea</span>
+                        </label>
+                    </div>
+
+                    <div id="ad-adherence-container" class="control-group detail-level-container">
+                        <label for="ad-adherence-slider"><span data-translate="adAdherenceLevelLabel">Adherence to Reference:</span> <span id="ad-adherence-level-value" data-translate="adAdherenceLevelMedium">Medium</span></label>
+                        <input type="range" id="ad-adherence-slider" min="1" max="3" value="2">
+                    </div>
+                    <div class="control-group">
+                        <label for="ad-product-name" data-translate="adProductNameLabel">Product / Brand Name</label>
+                        <div class="prompt-wrapper">
+                            <input type="text" id="ad-product-name" data-translate-placeholder="adProductNamePlaceholder" placeholder="e.g., Royal Class Beer">
+                             <div class="prompt-buttons-wrapper">
+                                <button type="button" id="translate-product-name-button" class="icon-button translate-button" title="Translate from Myanmar to English" data-translate-title="translateButtonTitle">
+                                    <i class="bi bi-translate"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="ad-field-checkbox-group">
+                            <div class="checkbox-container inline-checkbox">
+                                <input type="checkbox" id="ad-product-name-blank-checkbox">
+                                <label for="ad-product-name-blank-checkbox" data-translate="leaveSpaceForTextLabel">Leave space for text</label>
+                            </div>
+                            <div class="checkbox-container inline-checkbox">
+                                <input type="checkbox" id="ad-product-name-banner-checkbox" disabled>
+                                <label for="ad-product-name-banner-checkbox" data-translate="addBannerForTextLabel">Add a design banner</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="product-logo-uploader-container" class="control-group">
+                        <label for="product-logo-uploader" data-translate="productLogoUploaderLabel">Upload Product Logo (Optional)</label>
+                        <input type="file" id="product-logo-uploader" accept="image/*">
+                        <div id="product-logo-preview-container" class="hidden">
+                            <img id="product-logo-preview" src="" data-translate-alt="productLogoPreviewAlt" alt="Product Logo Preview"/>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label for="ad-slogan" data-translate="adSloganLabel">Slogan / Promotional Text</label>
+                        <div class="prompt-wrapper">
+                            <textarea id="ad-slogan" rows="2" data-translate-placeholder="adSloganPlaceholder" placeholder="e.g., Special Promotion Set (C)"></textarea>
+                            <div class="prompt-buttons-wrapper">
+                                 <button type="button" id="translate-slogan-button" class="icon-button translate-button" title="Translate from Myanmar to English" data-translate-title="translateButtonTitle">
+                                    <i class="bi bi-translate"></i>
+                                 </button>
+                            </div>
+                        </div>
+                         <div class="ad-field-checkbox-group">
+                            <div class="checkbox-container inline-checkbox">
+                                <input type="checkbox" id="ad-slogan-blank-checkbox">
+                                <label for="ad-slogan-blank-checkbox" data-translate="leaveSpaceForTextLabel">Leave space for text</label>
+                            </div>
+                            <div class="checkbox-container inline-checkbox">
+                                <input type="checkbox" id="ad-slogan-banner-checkbox" disabled>
+                                <label for="ad-slogan-banner-checkbox" data-translate="addBannerForTextLabel">Add a design banner</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="logo-uploader-container" class="control-group">
+                        <label for="logo-uploader" data-translate="pageLogoUploaderLabel">Upload Page/Brand Logo (Optional)</label>
+                        <input type="file" id="logo-uploader" accept="image/*">
+                        <div id="logo-preview-container" class="hidden">
+                            <img id="logo-preview" src="" data-translate-alt="logoPreviewAlt" alt="Logo Preview"/>
+                        </div>
+                    </div>
+                    <div id="ad-additional-fields-container" class="control-group">
+                        <label>
+                            <span data-translate="additionalAdTextFieldsLabel">Additional Text Fields</span>
+                            <i class="bi bi-arrow-repeat analyzing-spinner hidden" id="ad-fields-spinner"></i>
+                        </label>
+                        <div id="ad-additional-fields-list"></div>
+                        <button type="button" id="add-ad-field-button">
+                            <i class="bi bi-plus-circle"></i> <span data-translate="addAdFieldButton">Add Field</span>
+                        </button>
+                    </div>
+                    <div id="ad-products-container" class="control-group">
+                        <label data-translate="detectedProductsLabel">Detected/Added Products</label>
+                        <div id="ad-products-list"></div>
+                        <button type="button" id="add-ad-product-button">
+                            <i class="bi bi-box-seam"></i> <span data-translate="addAdProductButton">Add Product</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="logo-creator-options" class="hidden">
+                    <div class="control-group">
+                        <label for="logo-company-name" data-translate="logoCompanyNameLabel">Company / Brand Name</label>
+                        <input type="text" id="logo-company-name" data-translate-placeholder="logoCompanyNamePlaceholder" placeholder="e.g., Xvpan, The Daily Grind">
+                    </div>
+                    <div class="control-group">
+                        <label for="logo-industry" data-translate="logoIndustryLabel">Industry / Product Type</label>
+                        <input type="text" id="logo-industry" data-translate-placeholder="logoIndustryPlaceholder" placeholder="e.g., VPN service provider, Coffee Shop">
+                    </div>
+                    <div class="control-group">
+                        <label for="logo-slogan" data-translate="logoSloganLabel">Slogan (Optional)</label>
+                        <textarea id="logo-slogan" rows="2" data-translate-placeholder="logoSloganPlaceholder" placeholder="e.g., Unlock a Faster, Safer Internet"></textarea>
+                    </div>
+                     <div id="logo-reference-uploader-container" class="control-group">
+                        <label for="logo-reference-uploader" data-translate="logoReferenceUploaderLabel">Upload Reference Logo/Image (Optional)</label>
+                        <input type="file" id="logo-reference-uploader" accept="image/*">
+                        <div id="logo-reference-preview-container" class="hidden">
+                            <img id="logo-reference-preview" src="" data-translate-alt="logoReferencePreviewAlt" alt="Reference Logo Preview"/>
+                        </div>
+                    </div>
+                    <div class="control-group">
+                        <label for="logo-style-selector" data-translate="logoStyleLabel">Logo Style / Aesthetic</label>
+                        <select id="logo-style-selector">
+                            <option value="modern" data-translate="logoStyleModern">Modern & Minimalist</option>
+                            <option value="vintage" data-translate="logoStyleVintage">Vintage & Retro</option>
+                            <option value="playful" data-translate="logoStylePlayful">Playful & Fun</option>
+                            <option value="corporate" data-translate="logoStyleCorporate">Corporate & Professional</option>
+                            <option value="elegant" data-translate="logoStyleElegant">Elegant & Luxurious</option>
+                            <option value="geometric" data-translate="logoStyleGeometric">Bold & Geometric</option>
+                            <option value="tech-glow" data-translate="logoStyleTechGlow">Tech & Futuristic (with Glow Effects)</option>
+                            <option value="3d-metallic" data-translate="logoStyle3dMetallic">3D & Metallic</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="logo-output-variations-selector" data-translate="logoOutputVariationsLabel">Output Variations</label>
+                        <select id="logo-output-variations-selector">
+                            <option value="full-color" data-translate="logoOutputVariationFullColor">Full Color</option>
+                            <option value="monochrome" data-translate="logoOutputVariationMonochrome">Monochrome</option>
+                            <option value="icon-only" data-translate="logoOutputVariationIconOnly">Icon-only</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="logo-core-elements" data-translate="logoCoreElementsLabel">Core Elements / Letters (Optional)</label>
+                        <input type="text" id="logo-core-elements" data-translate-placeholder="logoCoreElementsPlaceholder" placeholder="e.g., The letters X and V, a coffee bean">
+                    </div>
+                    <div class="control-group">
+                        <label for="logo-motifs" data-translate="logoMotifsLabel">Motifs / Icons (Optional)</label>
+                        <input type="text" id="logo-motifs" data-translate-placeholder="logoMotifsPlaceholder" placeholder="e.g., shield, globe, network lines">
+                    </div>
+                    <div class="control-group">
+                        <label for="logo-colors" data-translate="logoColorsLabel">Color Palette (Optional)</label>
+                        <div class="color-input-group">
+                            <input type="text" id="logo-colors" data-translate-placeholder="logoColorsPlaceholder" placeholder="e.g., Deep blue and vibrant green, #001F3F, #28A745">
+                            <input type="color" id="logo-color-picker" title="Add color" value="#6A5ACD">
+                        </div>
+                    </div>
+                     <div class="control-group">
+                        <label for="logo-special-effects" data-translate="logoSpecialEffectsLabel">Special Effects (Optional)</label>
+                        <input type="text" id="logo-special-effects" data-translate-placeholder="logoSpecialEffectsPlaceholder" placeholder="e.g., glowing rings, orbiting lights, digital particles">
+                    </div>
+                    <div class="control-group">
+                        <label for="logo-background-style" data-translate="logoBackgroundStyleLabel">Background Style (Optional)</label>
+                        <div class="color-input-group">
+                           <input type="text" id="logo-background-style" data-translate-placeholder="logoBackgroundStylePlaceholder" placeholder="e.g., solid white, dark with circuit patterns, transparent">
+                           <input type="color" id="logo-background-color-picker" title="Add color" value="#FFFFFF">
+                        </div>
+                    </div>
+                     <div class="control-group">
+                        <label for="logo-font-style-selector" data-translate="logoFontStyleLabel">Font Style</label>
+                        <select id="logo-font-style-selector">
+                            <option value="sans-serif" data-translate="logoFontStyleSansSerif">Sans-serif (Clean, Modern)</option>
+                            <option value="serif" data-translate="logoFontStyleSerif">Serif (Traditional, Elegant)</option>
+                            <option value="script" data-translate="logoFontStyleScript">Script (Handwritten, Personal)</option>
+                            <option value="display" data-translate="logoFontStyleDisplay">Display (Bold, Unique)</option>
+                            <option value="stencil" data-translate="logoFontStyleStencil">Stencil (Military, Industrial)</option>
+                            <option value="typewriter" data-translate="logoFontStyleTypewriter">Typewriter (Vintage, Mechanical)</option>
+                            <option value="art-deco" data-translate="logoFontStyleArtDeco">Art Deco (Elegant, Geometric)</option>
+                            <option value="gothic" data-translate="logoFontStyleGothic">Gothic (Classic, Ornate)</option>
+                        </select>
+                    </div>
+                </div>
+
+
+                <div id="prompt-generation-options" class="hidden">
+                     <nav class="options-tabs">
+                        <button type="button" class="tab-button active" data-tab="style" data-translate="tabStyle">Style</button>
+                        <button type="button" class="tab-button" data-tab="camera" data-translate="tabCamera">Camera</button>
+                        <button type="button" class="tab-button" data-tab="lighting" data-translate="tabLighting">Lighting</button>
+                        <button type="button" class="tab-button" data-tab="subject" data-translate="tabSubject">Subject</button>
+                        <button type="button" class="tab-button" data-tab="advanced" data-translate="tabAdvanced">Advanced</button>
+                    </nav>
+
+                    <div class="tab-content-container">
+                        <div id="tab-content-style" class="tab-content active">
+                            <div class="control-group">
+                                <label for="artistic-style-selector" data-translate="styleLabel">Style</label>
+                                <select id="artistic-style-selector">
+                                    <option value="default" selected data-translate="styleDefault">Default (Analyzed from image)</option>
+                                    <option value="photorealistic" data-translate="stylePhotorealistic">Photorealistic</option>
+                                    <option value="oil-painting" data-translate="styleOilPainting">Oil Painting</option>
+                                    <option value="watercolor" data-translate="styleWatercolor">Watercolor</option>
+                                    <option value="anime" data-translate="styleAnime">Anime / Manga</option>
+                                    <option value="cyberpunk" data-translate="styleCyberpunk">Cyberpunk</option>
+                                    <option value="steampunk" data-translate="styleSteampunk">Steampunk</option>
+                                    <option value="vintage" data-translate="styleVintage">Vintage</option>
+                                </select>
+                            </div>
+                            <div class="control-group checkbox-container">
+                                <input type="checkbox" id="aim-for-photorealism-checkbox">
+                                <label for="aim-for-photorealism-checkbox" data-translate="aimForPhotorealismLabel">Aim for Photorealism</label>
+                            </div>
+                        </div>
+
+                        <div id="tab-content-camera" class="tab-content">
+                            <div class="control-group">
+                                 <label for="camera-angle-selector" data-translate="cameraAngleLabel">Camera Angle</label>
+                                 <select id="camera-angle-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="eye-level" data-translate="cameraAngleEyeLevel">Eye-level</option>
+                                    <option value="low-angle" data-translate="cameraAngleLow">Low Angle</option>
+                                    <option value="high-angle" data-translate="cameraAngleHigh">High Angle</option>
+                                    <option value="dutch-angle" data-translate="cameraAngleDutch">Dutch Angle</option>
+                                    <option value="birds-eye" data-translate="cameraAngleBirdsEye">Bird's-eye View</option>
+                                 </select>
+                            </div>
+                            <div class="control-group">
+                                <label for="shot-type-selector" data-translate="shotTypeLabel">Shot Type</label>
+                                <select id="shot-type-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="close-up" data-translate="shotTypeCloseUp">Close-up</option>
+                                    <option value="medium-shot" data-translate="shotTypeMedium">Medium Shot</option>
+                                    <option value="long-shot" data-translate="shotTypeLong">Long Shot</option>
+                                    <option value="full-shot" data-translate="shotTypeFull">Full Shot</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label for="lens-type-selector" data-translate="lensTypeLabel">Lens Type</label>
+                                <select id="lens-type-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="fisheye" data-translate="lensTypeFisheye">Fisheye (8-15mm)</option>
+                                    <option value="ultra-wide" data-translate="lensTypeUltraWide">Ultra Wide-angle (14-20mm)</option>
+                                    <option value="wide" data-translate="lensTypeWide">Wide-angle (24-35mm)</option>
+                                    <option value="standard" data-translate="lensTypeStandard">Standard (50mm)</option>
+                                    <option value="portrait" data-translate="lensTypePortrait">Portrait (85mm)</option>
+                                    <option value="telephoto" data-translate="lensTypeTelephoto">Telephoto (135mm)</option>
+                                    <option value="super-telephoto" data-translate="lensTypeSuperTelephoto">Super Telephoto (300mm+)</option>
+                                    <option value="macro" data-translate="lensTypeMacro">Macro</option>
+                                    <option value="tilt-shift" data-translate="lensTypeTiltShift">Tilt-shift</option>
+                                </select>
+                            </div>
+                            <div class="control-group">
+                                <label for="camera-look-selector" data-translate="cameraLookLabel">Camera Look</label>
+                                <select id="camera-look-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="cinematic" data-translate="cameraLookCinematic">Cinematic</option>
+                                    <option value="documentary" data-translate="cameraLookDocumentary">Documentary</option>
+                                    <option value="glamour" data-translate="cameraLookGlamour">Glamour Shot</option>
+                                    <option value="lomo" data-translate="cameraLookLomo">Lomography</option>
+                                    <option value="vintage-film" data-translate="cameraLookVintageFilm">Vintage Film</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="tab-content-lighting" class="tab-content">
+                            <div class="control-group">
+                                 <label for="lighting-selector" data-translate="lightingLabel">Lighting</label>
+                                 <select id="lighting-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="natural" data-translate="lightingNatural">Natural Sunlight</option>
+                                    <option value="studio" data-translate="lightingStudio">Studio Lighting</option>
+                                    <option value="golden-hour" data-translate="lightingGoldenHour">Golden Hour</option>
+                                    <option value="blue-hour" data-translate="lightingBlueHour">Blue Hour</option>
+                                    <option value="dramatic" data-translate="lightingDramatic">Dramatic</option>
+                                    <option value="neon" data-translate="lightingNeon">Neon</option>
+                                 </select>
+                             </div>
+                             <div class="control-group">
+                                  <label for="color-palette-selector" data-translate="colorPaletteLabel">Color Palette</label>
+                                  <select id="color-palette-selector">
+                                     <option value="default" selected data-translate="defaultOption">Default</option>
+                                     <option value="vibrant" data-translate="colorPaletteVibrant">Vibrant & Saturated</option>
+                                     <option value="monochromatic" data-translate="colorPaletteMonochromatic">Monochromatic</option>
+                                     <option value="pastel" data-translate="colorPalettePastel">Pastel</option>
+                                     <option value="muted" data-translate="colorPaletteMuted">Muted & Earthy</option>
+                                     <option value="selective-color" data-translate="colorPaletteSelectiveColor">Selective Color (Color Splash)</option>
+                                  </select>
+                             </div>
+                        </div>
+
+                        <div id="tab-content-subject" class="tab-content">
+                             <div class="control-group">
+                                 <label for="human-look-selector" data-translate="humanLookLabel">Human Look & Expression</label>
+                                 <select id="human-look-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="looking-at-camera" data-translate="humanLookLookingAtCamera">Looking at Camera</option>
+                                    <option value="looking-away" data-translate="humanLookLookingAway">Looking Away</option>
+                                    <option value="happy-smiling" data-translate="humanLookHappySmiling">Happy / Smiling</option>
+                                    <option value="sad-thoughtful" data-translate="humanLookSadThoughtful">Sad / Thoughtful</option>
+                                    <option value="serious-neutral" data-translate="humanLookSeriousNeutral">Serious / Neutral</option>
+                                    <option value="angry-intense" data-translate="humanLookAngryIntense">Angry / Intense</option>
+                                    <option value="candid-natural" data-translate="humanLookCandidNatural">Candid / Natural Pose</option>
+                                 </select>
+                            </div>
+                             <div class="control-group">
+                                 <label for="human-age-selector" data-translate="humanAgeLabel">Human Age</label>
+                                 <select id="human-age-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="child" data-translate="humanAgeChild">Child (Approx. 2-12)</option>
+                                    <option value="teenager" data-translate="humanAgeTeenager">Teenager (Approx. 13-19)</option>
+                                    <option value="young-adult" data-translate="humanAgeYoungAdult">Young Adult (Approx. 20-30)</option>
+                                    <option value="adult" data-translate="humanAgeAdult">Adult (Approx. 31-60)</option>
+                                    <option value="senior" data-translate="humanAgeSenior">Senior (Approx. 60+)</option>
+                                 </select>
+                            </div>
+                             <div class="control-group">
+                                 <label for="hair-style-selector" data-translate="hairStyleLabel">Hair Style</label>
+                                 <select id="hair-style-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="short" data-translate="hairStyleShort">Short Hair</option>
+                                    <option value="long" data-translate="hairStyleLong">Long Hair</option>
+                                    <option value="curly" data-translate="hairStyleCurly">Curly</option>
+                                    <option value="straight" data-translate="hairStyleStraight">Straight</option>
+                                    <option value="ponytail" data-translate="hairStylePonytail">Ponytail</option>
+                                    <option value="braids" data-translate="hairStyleBraids">Braids</option>
+                                    <option value="bald" data-translate="hairStyleBald">Bald</option>
+                                 </select>
+                            </div>
+                             <div class="control-group">
+                                 <label for="fashion-style-selector" data-translate="fashionStyleLabel">Fashion Style</label>
+                                 <select id="fashion-style-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="casual" data-translate="fashionStyleCasual">Casual</option>
+                                    <option value="formal" data-translate="fashionStyleFormal">Formal</option>
+                                    <option value="streetwear" data-translate="fashionStyleStreetwear">Streetwear</option>
+                                    <option value="vintage" data-translate="fashionStyleVintage">Vintage</option>
+                                    <option value="bohemian" data-translate="fashionStyleBohemian">Bohemian</option>
+                                    <option value="sporty" data-translate="fashionStyleSporty">Sporty</option>
+                                 </select>
+                            </div>
+                             <div class="control-group">
+                                 <label for="traditional-dress-selector" data-translate="traditionalDressLabel">Traditional Dress</label>
+                                 <select id="traditional-dress-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="japanese-kimono" data-translate="traditionalDressJapanese">Japanese Kimono</option>
+                                    <option value="indian-sari" data-translate="traditionalDressIndian">Indian Sari</option>
+                                    <option value="scottish-kilt" data-translate="traditionalDressScottish">Scottish Kilt</option>
+                                    <option value="korean-hanbok" data-translate="traditionalDressKorean">Korean Hanbok</option>
+                                    <option value="myanmar-longyi" data-translate="traditionalDressMyanmar">Myanmar Longyi</option>
+                                    <option value="chinese-qipao" data-translate="traditionalDressChinese">Chinese Qipao</option>
+                                    <option value="thai-chut-thai" data-translate="traditionalDressThai">Thai Chut Thai</option>
+                                 </select>
+                            </div>
+                             <div class="control-group">
+                                 <label for="accessories-selector" data-translate="accessoriesLabel">Accessories</label>
+                                 <select id="accessories-selector">
+                                    <option value="default" selected data-translate="defaultOption">Default</option>
+                                    <option value="glasses" data-translate="accessoriesGlasses">Wearing Glasses</option>
+                                    <option value="hat" data-translate="accessoriesHat">Wearing a Hat</option>
+                                    <option value="jewelry" data-translate="accessoriesJewelry">Wearing Jewelry</option>
+                                    <option value="scarf" data-translate="accessoriesScarf">Wearing a Scarf</option>
+                                    <option value="no-accessories" data-translate="accessoriesNone">No Accessories</option>
+                                 </select>
+                            </div>
+                             <div class="control-group checkbox-container grid-span-all" id="analyze-human-details-container">
+                                <input type="checkbox" id="analyze-human-details-checkbox">
+                                <label for="analyze-human-details-checkbox" data-translate="analyzeHumanDetailsLabel">Analyze & Include Details from Image</label>
+                            </div>
+                        </div>
+
+                        <div id="tab-content-advanced" class="tab-content">
+                            <div class="control-group detail-level-container grid-span-all">
+                                <label for="detail-level-slider"><span data-translate="detailLevelLabel">Level of Detail:</span> <span id="detail-level-value" data-translate="detailLevelMedium">Medium</span></label>
+                                <input type="range" id="detail-level-slider" min="1" max="3" value="2">
+                            </div>
+                            <div class="control-group num-prompts-container grid-span-all">
+                                <label for="num-prompts-slider"><span data-translate="numVariationsLabel">Number of Variations:</span> <span id="num-prompts-value">1</span></label>
+                                <input type="range" id="num-prompts-slider" min="1" max="3" value="1">
+                            </div>
+                            <div class="control-group checkbox-container" id="generate-as-command-checkbox-container">
+                                <input type="checkbox" id="generate-as-command-checkbox">
+                                <label for="generate-as-command-checkbox" data-translate="generateAsCommandLabel">Generate as an editing command</label>
+                            </div>
+                            <div class="control-group" id="sponsor-name-container">
+                                <label for="sponsor-name-input" data-translate="sponsorNameLabel">Sponsor / Brand Name</label>
+                                <input type="text" id="sponsor-name-input" data-translate-placeholder="sponsorNamePlaceholder" placeholder="e.g., ZEVEN, Coca-Cola">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="candid-aspect-ratio-container" class="hidden">
+                    <div class="control-group">
+                        <div class="aspect-ratio-header">
+                             <label for="candid-aspect-ratio-selector" data-translate="candidAspectRatioLegend">Aspect Ratio</label>
+                             <div class="orientation-toggle-container">
+                                 <input type="checkbox" id="candid-orientation-toggle">
+                                 <label for="candid-orientation-toggle" data-translate="candidOrientationLabel">Landscape</label>
+                             </div>
+                        </div>
+                        <select id="candid-aspect-ratio-selector">
+                            <!-- Options populated by JS -->
+                        </select>
+                    </div>
+                </div>
+
+                <div id="candid-environment-container" class="hidden">
+                    <label for="candid-environment-input" data-translate="candidEnvironmentLabel">Environment</label>
+                    <div class="prompt-wrapper">
+                        <input type="text" id="candid-environment-input" data-translate-placeholder="candidEnvironmentPlaceholder" placeholder="e.g., a messy bedroom with posters">
+                        <div class="prompt-buttons-wrapper">
+                            <button type="button" id="random-environment-button" class="icon-button" data-translate-title="randomEnvironmentButtonTitle" title="Random Environment">
+                                <i class="bi bi-shuffle"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="candid-time-of-day-container" class="control-group hidden">
+                    <label for="candid-time-of-day-selector" data-translate="timeOfDayLabel">Time of Day</label>
+                    <select id="candid-time-of-day-selector">
+                        <option value="default" selected data-translate="timeOfDayDefault">Default</option>
+                        <option value="morning" data-translate="timeOfDayMorning">Morning</option>
+                        <option value="afternoon" data-translate="timeOfDayAfternoon">Afternoon</option>
+                        <option value="golden-hour" data-translate="timeOfDayGoldenHour">Golden Hour (Sunset)</option>
+                        <option value="blue-hour" data-translate="timeOfDayBlueHour">Blue Hour (Twilight)</option>
+                        <option value="night" data-translate="timeOfDayNight">Night</option>
+                    </select>
+                </div>
+
+                <div id="white-banner-container" class="control-group checkbox-container hidden">
+                    <input type="checkbox" id="add-white-banner-checkbox">
+                    <label for="add-white-banner-checkbox" data-translate="addWhiteBannerLabel">Hide Gemini Watermark (via croppable banner)</label>
+                </div>
+
+                <div id="negative-prompt-container" class="control-group hidden">
+                    <label for="negative-prompt-input" data-translate="negativePromptLabel">Negative Prompts (what to avoid)</label>
+                    <textarea id="negative-prompt-input" rows="2" data-translate-placeholder="negativePromptPlaceholder" placeholder="e.g., blurry, ugly, text, watermark, low quality"></textarea>
+                </div>
+
+                <div id="form-buttons-container">
+                    <button type="submit" id="submit-button">Go</button>
+                    <button type="button" id="surprise-me-button" class="hidden"><span class="button-text" data-translate="surpriseMeButton">Surprise Me</span></button>
+                    <button type="button" id="feeling-lucky-button" class="hidden" data-translate="imFeelingLuckyButton">I'm Feeling Lucky</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="result-container">
+            <div id="loading-indicator" class="hidden">
+                <div class="spinner"></div>
+                <p data-translate="loadingIndicatorText">Thinking...</p>
+            </div>
+            <div id="error-message" class="hidden"></div>
+            <div id="prompt-result"></div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-links">
+            <button type="button" id="policy-button" data-translate="viewPolicyButton">View Policy Guidelines</button>
+            <p class="developer-credit" data-translate="developerCredit">developed by ZEVEN</p>
+            <button type="button" id="donation-button" data-translate="donationLinkText">Buy me a coffee</button>
+        </div>
+    </footer>
+
+    <div id="full-prompt-modal" class="modal-overlay hidden">
+         <div class="modal-content">
+            <button class="close-button">&times;</button>
+            <h3 data-translate="fullPromptModalTitle">Full Prompt</h3>
+            <div class="modal-body">
+                <pre id="full-prompt-text"></pre>
+            </div>
+            <div class="modal-footer">
+                <button id="copy-full-prompt-button" class="primary-button">
+                    <i class="bi bi-clipboard"></i> <span data-translate="copyPromptButton">Copy Prompt</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="policy-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-modal-button" class="close-button">&times;</button>
+            <h3 data-translate="policyModalTitle">Gemini App Policy Guidelines</h3>
+            <p data-translate="policyModalIntro">Our goal is to be maximally helpful while avoiding outputs that could cause real-world harm or offence. Gemini should avoid the following types of problematic outputs:</p>
+            
+            <h4 data-translate="policyChildSafetyTitle">Threats to child safety</h4>
+            <p data-translate="policyChildSafetyBody">Gemini should not generate outputs, including child sexual abuse material, that exploit or sexualise children.</p>
+    
+            <h4 data-translate="policyDangerousActivitiesTitle">Dangerous activities</h4>
+            <p data-translate="policyDangerousActivitiesBody">Gemini should not generate outputs that encourage or enable dangerous activities. These include:</p>
+            <ul>
+                <li data-translate="policyDangerousActivitiesItem1">Instructions for suicide and other self-harm activities.</li>
+                <li data-translate="policyDangerousActivitiesItem2">Facilitation of activities that might cause real-world harm, like purchasing illegal drugs or building weapons.</li>
+            </ul>
+    
+            <h4 data-translate="policyViolenceTitle">Violence and gore</h4>
+            <p data-translate="policyViolenceBody">Gemini should not generate outputs that describe or depict sensational, shocking or gratuitous violence. These include:</p>
+            <ul>
+                <li data-translate="policyViolenceItem1">Excessive blood, gore or injuries.</li>
+                <li data-translate="policyViolenceItem2">Gratuitous violence against animals.</li>
+            </ul>
+    
+            <h4 data-translate="policyHarmfulInaccuraciesTitle">Harmful factual inaccuracies</h4>
+            <p data-translate="policyHarmfulInaccuraciesBody">Gemini should not generate factually inaccurate outputs that could cause significant harm, such as incorrect medical information or erroneous disaster alerts.</p>
+    
+            <h4 data-translate="policyHarassmentTitle">Harassment, incitement and discrimination</h4>
+            <p data-translate="policyHarassmentBody">Gemini should not generate outputs that incite violence, make malicious attacks, or constitute bullying against individuals or groups based on a legally protected characteristic.</p>
+    
+            <h4 data-translate="policySexualContentTitle">Sexually explicit material</h4>
+            <p data-translate="policySexualContentBody">Gemini should not generate outputs that describe or depict explicit or graphic sexual acts or sexual violence.</p>
+        </div>
+    </div>
+
+    <div id="suggestions-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-suggestions-modal-button" class="close-button">&times;</button>
+            <h3 data-translate="suggestionsModalTitle">Prompt Suggestions</h3>
+            <div id="suggestions-list-container">
+                <ul id="suggestions-list">
+                    <!-- Suggestions will be populated here -->
+                </ul>
+            </div>
+            <div id="suggestions-error" class="hidden"></div>
+        </div>
+    </div>
+
+    <div id="history-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-history-modal-button" class="close-button">&times;</button>
+            <h3 data-translate="historyModalTitle">Prompt History</h3>
+            <div id="history-filters">
+                <input type="search" id="history-search-input" data-translate-placeholder="historySearchPlaceholder" placeholder="Search prompts...">
+                <div class="history-filter-group">
+                    <select id="history-mode-filter">
+                        <option value="all" data-translate="historyFilterModeAll">All Modes</option>
+                        <option value="builder" data-translate="modeBuilderLabel">Prompt Builder</option>
+                        <option value="prompt" data-translate="modePromptLabel">From Image</option>
+                        <option value="candid" data-translate="modeCandidLabel">Candid Action</option>
+                        <option value="ad-creator" data-translate="modeAdCreatorLabel">Ad Creator</option>
+                        <option value="logo-creator" data-translate="modeLogoCreatorLabel">Logo Creator</option>
+                    </select>
+                    <select id="history-date-filter">
+                        <option value="all" data-translate="historyFilterDateAll">All Time</option>
+                        <option value="today" data-translate="historyFilterDateToday">Today</option>
+                        <option value="7days" data-translate="historyFilterDate7Days">Last 7 Days</option>
+                        <option value="30days" data-translate="historyFilterDate30Days">Last 30 Days</option>
+                    </select>
+                </div>
+            </div>
+            <div id="history-list-container">
+                <div id="history-list">
+                    <!-- History cards will be populated here -->
+                </div>
+                <p id="no-history-message" class="hidden" data-translate="noHistoryMessageText">No recent prompts.</p>
+            </div>
+            <button id="clear-history-button" data-translate="clearHistoryButton">Clear History</button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button id="close-settings-modal-button" class="close-button">&times;</button>
+            <h3 data-translate="settingsModalTitle">Settings</h3>
+            <div class="settings-section" id="model-settings-container">
+                <h4 data-translate="modelSelectionHeader">Model Selection</h4>
+                <label for="model-selector-dropdown" data-translate="modelSelectionLabel">AI Model</label>
+                <select id="model-selector-dropdown">
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash (Default)</option>
+                    <option value="gemini-2.5-flash-image-preview">Gemini 2.5 Flash Image Preview</option>
+                </select>
+            </div>
+            <div class="settings-section" id="ui-mode-container">
+                <h4 data-translate="uiModeHeader">UI Mode</h4>
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="ui-mode" value="basic" checked>
+                        <span data-translate="uiModeBasicLabel">Basic (Simplified)</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="ui-mode" value="advanced">
+                        <span data-translate="uiModeAdvancedLabel">Advanced (Full Controls)</span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-section" id="api-key-management-container">
+                <h4 data-translate="apiKeyManagementHeader">API Key Management</h4>
+                <p class="api-key-status-description" data-translate="apiKeyStatusDescription">Key status is verified with a test call. An 'Error' status may be due to network issues, not just an invalid key.</p>
+                <div id="api-key-form">
+                    <label for="api-key-input" data-translate="apiKeyInputLabel">Enter Gemini API Key</label>
+                    <div class="input-group">
+                        <input type="password" id="api-key-input" placeholder="Enter your API Key">
+                        <button id="save-api-key-button" data-translate="saveApiKeyButton">Save</button>
+                    </div>
+                </div>
+                <div id="api-key-list-container">
+                    <ul id="api-key-list">
+                        <!-- API keys will be populated here -->
+                    </ul>
+                     <p id="no-keys-message" class="hidden" data-translate="noKeysMessageText">No API keys saved.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="donation-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="close-button">&times;</button>
+            <h3 data-translate="donationModalTitle">Buy me a coffee</h3>
+            <div class="modal-body">
+                <div class="donation-details">
+                    <div class="donation-row">
+                        <span class="donation-label" data-translate="donationMethodLabel">Payment Method:</span>
+                        <span class="donation-value" data-translate="donationMethodValue">KBZPay</span>
+                    </div>
+                    <div class="donation-row">
+                        <span class="donation-label" data-translate="donationNameLabel">Name:</span>
+                        <span class="donation-value" data-translate="donationNameValue">Zar Ni Myo</span>
+                    </div>
+                    <div class="donation-row">
+                        <span class="donation-label" data-translate="donationPhoneLabel">Phone Number:</span>
+                        <div class="donation-value-copyable">
+                            <span id="donation-phone-number">09 793 999 528</span>
+                            <button type="button" id="copy-donation-phone-button" class="icon-button" data-translate-title="donationCopyButtonTitle" title="Copy Phone Number">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <p class="donation-thanks" data-translate="donationThankYouText">Thank you for your support! ❤️</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="index.js"></script>
+</body>
+</html>
